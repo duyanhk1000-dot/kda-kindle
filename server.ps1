@@ -1,4 +1,4 @@
-﻿# KDA Kindle Local HTTP Gateway Server (Phase 2 Live News & Full Article Reader)
+﻿# KDA Kindle Local HTTP Gateway Server (Phase 2 Live News Engine)
 # Pure HTTP (Port 8080) - Non-Admin Compatible TcpListener
 
 $port = 8080
@@ -18,12 +18,10 @@ Write-Host ''
 Write-Host '  URL cho máy Kindle Touch 4 (Mở trong cùng Wi-Fi LAN):' -ForegroundColor Yellow
 Write-Host ('  http://' + $ip + ':' + $port + '/') -ForegroundColor White -BackgroundColor Black
 Write-Host ''
-Write-Host '  10 Nguồn tin tức & diễn đàn Việt Nam:' -ForegroundColor Yellow
+Write-Host '  8 Nguồn tin tức báo chí Việt Nam:' -ForegroundColor Yellow
 Write-Host ('  - VnExpress:       http://' + $ip + ':' + $port + '/news?src=vnexpress')
 Write-Host ('  - Dân Trí:         http://' + $ip + ':' + $port + '/news?src=dantri')
 Write-Host ('  - CafeF:           http://' + $ip + ':' + $port + '/news?src=cafef')
-Write-Host ('  - Mạng Tinh Tế:    http://' + $ip + ':' + $port + '/news?src=tinhte')
-Write-Host ('  - Diễn Đàn VOZ:    http://' + $ip + ':' + $port + '/news?src=voz')
 Write-Host ('  - VietNamNet:      http://' + $ip + ':' + $port + '/news?src=vietnamnet')
 Write-Host ('  - Báo Thanh Niên:  http://' + $ip + ':' + $port + '/news?src=thanhnien')
 Write-Host ('  - Báo VTC News:    http://' + $ip + ':' + $port + '/news?src=vtcnews')
@@ -60,13 +58,24 @@ function Clean-HtmlTags($text) {
     return $clean
 }
 
-# Fetch Live RSS items with CDATA InnerText support
+# Safely extract text from XmlNode property
+function Get-XmlNodeText($node, $propName) {
+    if (-not $node -or -not $node.$propName) { return '' }
+    $p = $node.$propName
+    if ($p.InnerText) { return $p.InnerText.Trim() }
+    if ($p.'#cdata-section') { return $p.'#cdata-section'.Trim() }
+    if ($p.'#text') { return $p.'#text'.Trim() }
+    if ($p.href) { return $p.href.Trim() }
+    return ([string]$p).Trim()
+}
+
+# Fetch Live RSS items with robust property extraction
 function Fetch-RssItems($feedUrl, $sourceName) {
     $items = @()
     try {
         $req = [System.Net.HttpWebRequest]::Create($feedUrl)
         $req.UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) KDAKindleReader/1.0'
-        $req.Timeout = 6000
+        $req.Timeout = 7000
         $res = $req.GetResponse()
         $reader = New-Object System.IO.StreamReader($res.GetResponseStream(), [System.Text.Encoding]::UTF8)
         $xmlContent = $reader.ReadToEnd()
@@ -79,41 +88,26 @@ function Fetch-RssItems($feedUrl, $sourceName) {
         foreach ($node in $nodes) {
             if ($count -ge 12) { break }
             
-            $title = ''
-            if ($node.title) {
-                if ($node.title.InnerText) { $title = $node.title.InnerText.Trim() }
-                elseif ($node.title.'#cdata-section') { $title = $node.title.'#cdata-section'.Trim() }
-                elseif ($node.title.'#text') { $title = $node.title.'#text'.Trim() }
-                else { $title = ([string]$node.title).Trim() }
-            }
-
-            $link = $node.link
-            if ($link.href) { $link = $link.href }
-            $pubDate = $node.pubDate
-            if (-not $pubDate) { $pubDate = $node.updated }
+            $title = Get-XmlNodeText $node 'title'
+            $link = Get-XmlNodeText $node 'link'
+            if (-not $link) { $link = Get-XmlNodeText $node 'guid' }
+            
+            $pubDate = Get-XmlNodeText $node 'pubDate'
+            if (-not $pubDate) { $pubDate = Get-XmlNodeText $node 'updated' }
             if (-not $pubDate) { $pubDate = (Get-Date -Format 'dd/MM/yyyy HH:mm') }
 
-            $desc = ''
-            if ($node.description) {
-                if ($node.description.InnerText) { $desc = $node.description.InnerText.Trim() }
-                elseif ($node.description.'#cdata-section') { $desc = $node.description.'#cdata-section'.Trim() }
-                elseif ($node.description.'#text') { $desc = $node.description.'#text'.Trim() }
-                else { $desc = ([string]$node.description).Trim() }
-            }
-            if (-not $desc -and $node.summary) {
-                if ($node.summary.InnerText) { $desc = $node.summary.InnerText.Trim() }
-                else { $desc = ([string]$node.summary).Trim() }
-            }
+            $desc = Get-XmlNodeText $node 'description'
+            if (-not $desc) { $desc = Get-XmlNodeText $node 'summary' }
 
             $cleanDesc = Clean-HtmlTags $desc
             if ($cleanDesc.Length -gt 150) { $cleanDesc = $cleanDesc.Substring(0, 150) + '...' }
 
-            if ($title) {
+            if ($title -and $link) {
                 $items += @{
                     id = $count
                     title = $title
-                    link = [string]$link
-                    pubDate = [string]$pubDate
+                    link = $link
+                    pubDate = $pubDate
                     desc = $cleanDesc
                     source = $sourceName
                 }
@@ -171,10 +165,10 @@ function Fetch-LuatVietnam() {
     return $items
 }
 
-# Fetch Full Article Paragraphs from live URL (supports News & VOZ XenForo)
+# Fetch Full Article Paragraphs from live URL
 function Fetch-FullArticleParagraphs($url, $fallbackDesc) {
     $paragraphs = @()
-    if (-not $url -or $url.Length -lt 8) {
+    if (-not $url -or $url.Length -lt 8 -or -not $url.StartsWith('http')) {
         $paragraphs += $fallbackDesc
         return $paragraphs
     }
@@ -185,27 +179,6 @@ function Fetch-FullArticleParagraphs($url, $fallbackDesc) {
         $res = $req.GetResponse()
         $reader = New-Object System.IO.StreamReader($res.GetResponseStream(), [System.Text.Encoding]::UTF8)
         $html = $reader.ReadToEnd()
-
-        # Check for XenForo / VOZ bbWrapper first
-        if ($html.Contains('class="bbWrapper">')) {
-            $parts = $html.Split(@('class="bbWrapper">'), [System.StringSplitOptions]::RemoveEmptyEntries)
-            if ($parts.Length -gt 1) {
-                $sub = $parts[1]
-                $end = $sub.IndexOf('</div>')
-                if ($end -gt 0) {
-                    $bbContent = $sub.Substring(0, $end)
-                    $clean = Clean-HtmlTags $bbContent
-                    $lines = $clean.Split("`n")
-                    foreach ($l in $lines) {
-                        $trimmed = $l.Trim().Replace("`r",'')
-                        if ($trimmed.Length -gt 25 -and -not $trimmed.StartsWith('Click để xem') -and -not $trimmed.StartsWith('http') -and -not $trimmed.StartsWith('<')) {
-                            $paragraphs += $trimmed
-                        }
-                    }
-                    if ($paragraphs.Count -gt 0) { return $paragraphs }
-                }
-            }
-        }
 
         # Standard <p> paragraph extractor
         $pParts = $html.Split([char]60)
@@ -291,8 +264,6 @@ try {
                 if ($rawUrl.Contains('src=vnexpress')) { $src = 'vnexpress' }
                 elseif ($rawUrl.Contains('src=dantri')) { $src = 'dantri' }
                 elseif ($rawUrl.Contains('src=cafef')) { $src = 'cafef' }
-                elseif ($rawUrl.Contains('src=tinhte')) { $src = 'tinhte' }
-                elseif ($rawUrl.Contains('src=voz')) { $src = 'voz' }
                 elseif ($rawUrl.Contains('src=vietnamnet')) { $src = 'vietnamnet' }
                 elseif ($rawUrl.Contains('src=thanhnien')) { $src = 'thanhnien' }
                 elseif ($rawUrl.Contains('src=vtcnews')) { $src = 'vtcnews' }
@@ -318,12 +289,6 @@ try {
                 } elseif ($src -eq 'cafef') {
                     $sourceTitle = 'CafeF - Tài Chính & Chứng Khoán'
                     $items = Fetch-RssItems 'https://cafef.vn/home.rss' 'CafeF'
-                } elseif ($src -eq 'tinhte') {
-                    $sourceTitle = 'Mạng Tinh Tế - Tin Công Nghệ'
-                    $items = Fetch-RssItems 'https://tinhte.vn/rss' 'Tinh Tế'
-                } elseif ($src -eq 'voz') {
-                    $sourceTitle = 'Diễn Đàn VOZ - Điểm Tin'
-                    $items = Fetch-RssItems 'https://voz.vn/f/-/index.rss' 'VOZ Forums'
                 } elseif ($src -eq 'vietnamnet') {
                     $sourceTitle = 'Báo VietNamNet - Thời Sự'
                     $items = Fetch-RssItems 'https://vietnamnet.vn/rss/thoi-su.rss' 'VietNamNet'
@@ -364,23 +329,21 @@ try {
                 $src = 'vnexpress'
                 if ($rawUrl.Contains('src=dantri')) { $src = 'dantri' }
                 elseif ($rawUrl.Contains('src=cafef')) { $src = 'cafef' }
-                elseif ($rawUrl.Contains('src=tinhte')) { $src = 'tinhte' }
-                elseif ($rawUrl.Contains('src=voz')) { $src = 'voz' }
                 elseif ($rawUrl.Contains('src=vietnamnet')) { $src = 'vietnamnet' }
                 elseif ($rawUrl.Contains('src=thanhnien')) { $src = 'thanhnien' }
                 elseif ($rawUrl.Contains('src=vtcnews')) { $src = 'vtcnews' }
                 elseif ($rawUrl.Contains('src=luatvietnam')) { $src = 'luatvietnam' }
                 elseif ($rawUrl.Contains('src=doisongphapluat')) { $src = 'doisongphapluat' }
 
+                # Parse exact article index robustly
                 $idx = 0
                 if ($rawUrl.Contains('idx=')) {
-                    $partsIdx = $rawUrl.Split('idx=')
-                    if ($partsIdx.Length -gt 1) {
-                        $rawIdx = ($partsIdx[1]).Split($amp)[0]
-                        $parsedIdx = 0
-                        if ([int]::TryParse($rawIdx, [ref]$parsedIdx)) {
-                            $idx = $parsedIdx
-                        }
+                    $idxStr = $rawUrl.Substring($rawUrl.IndexOf('idx=') + 4)
+                    $ampPos = $idxStr.IndexOf('&')
+                    if ($ampPos -ge 0) { $idxStr = $idxStr.Substring(0, $ampPos) }
+                    $parsedIdx = 0
+                    if ([int]::TryParse($idxStr, [ref]$parsedIdx)) {
+                        $idx = $parsedIdx
                     }
                 }
 
@@ -388,8 +351,6 @@ try {
                 if ($src -eq 'vnexpress') { $items = Fetch-RssItems 'https://vnexpress.net/rss/tin-moi-nhat.rss' 'VnExpress' }
                 elseif ($src -eq 'dantri') { $items = Fetch-RssItems 'https://dantri.com.vn/rss/su-kien.rss' 'Dân Trí' }
                 elseif ($src -eq 'cafef') { $items = Fetch-RssItems 'https://cafef.vn/home.rss' 'CafeF' }
-                elseif ($src -eq 'tinhte') { $items = Fetch-RssItems 'https://tinhte.vn/rss' 'Tinh Tế' }
-                elseif ($src -eq 'voz') { $items = Fetch-RssItems 'https://voz.vn/f/-/index.rss' 'VOZ Forums' }
                 elseif ($src -eq 'vietnamnet') { $items = Fetch-RssItems 'https://vietnamnet.vn/rss/thoi-su.rss' 'VietNamNet' }
                 elseif ($src -eq 'thanhnien') { $items = Fetch-RssItems 'https://thanhnien.vn/rss/home.rss' 'Thanh Niên' }
                 elseif ($src -eq 'vtcnews') { $items = Fetch-RssItems 'https://vtcnews.vn/rss/thoi-su.rss' 'VTC News' }
