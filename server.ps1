@@ -12,20 +12,23 @@ $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notli
 if (-not $ip) { $ip = "127.0.0.1" }
 
 Write-Host '==========================================================' -ForegroundColor Cyan
-Write-Host '  KDA KINDLE READER GATEWAY (PHASE 2 FULL LIVE NEWS + AI)' -ForegroundColor Green
+Write-Host '  KDA KINDLE READER GATEWAY (PHASE 2 VIETNAMESE NEWS ENGINE)' -ForegroundColor Green
 Write-Host '==========================================================' -ForegroundColor Cyan
 Write-Host ''
 Write-Host '  URL cho máy Kindle Touch 4 (Mở trong cùng Wi-Fi LAN):' -ForegroundColor Yellow
 Write-Host ('  http://' + $ip + ':' + $port + '/') -ForegroundColor White -BackgroundColor Black
 Write-Host ''
-Write-Host '  Các nguồn tin tức trực tiếp:' -ForegroundColor Yellow
+Write-Host '  10 Nguồn tin tức & diễn đàn Việt Nam:' -ForegroundColor Yellow
 Write-Host ('  - VnExpress:       http://' + $ip + ':' + $port + '/news?src=vnexpress')
 Write-Host ('  - Dân Trí:         http://' + $ip + ':' + $port + '/news?src=dantri')
 Write-Host ('  - CafeF:           http://' + $ip + ':' + $port + '/news?src=cafef')
-Write-Host ('  - Hacker News:     http://' + $ip + ':' + $port + '/news?src=hackernews')
-Write-Host ('  - Reddit Tech:     http://' + $ip + ':' + $port + '/news?src=reddit')
-Write-Host ('  - GitHub Trending: http://' + $ip + ':' + $port + '/news?src=github')
-Write-Host ('  - YouTube Trend:   http://' + $ip + ':' + $port + '/news?src=youtube')
+Write-Host ('  - Mạng Tinh Tế:    http://' + $ip + ':' + $port + '/news?src=tinhte')
+Write-Host ('  - Diễn Đàn VOZ:    http://' + $ip + ':' + $port + '/news?src=voz')
+Write-Host ('  - VietNamNet:      http://' + $ip + ':' + $port + '/news?src=vietnamnet')
+Write-Host ('  - Báo Thanh Niên:  http://' + $ip + ':' + $port + '/news?src=thanhnien')
+Write-Host ('  - Báo VTC News:    http://' + $ip + ':' + $port + '/news?src=vtcnews')
+Write-Host ('  - Luật Việt Nam:   http://' + $ip + ':' + $port + '/news?src=luatvietnam')
+Write-Host ('  - Đời Sống & PL:   http://' + $ip + ':' + $port + '/news?src=doisongphapluat')
 Write-Host ''
 Write-Host ('  Đang lắng nghe kết nối trên Cổng HTTP ' + $port + ' ...') -ForegroundColor Gray
 Write-Host '==========================================================' -ForegroundColor Cyan
@@ -62,7 +65,7 @@ function Fetch-RssItems($feedUrl, $sourceName) {
     $items = @()
     try {
         $req = [System.Net.HttpWebRequest]::Create($feedUrl)
-        $req.UserAgent = 'Mozilla/5.0 KDAKindleReader/1.0'
+        $req.UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) KDAKindleReader/1.0'
         $req.Timeout = 6000
         $res = $req.GetResponse()
         $reader = New-Object System.IO.StreamReader($res.GetResponseStream(), [System.Text.Encoding]::UTF8)
@@ -123,89 +126,47 @@ function Fetch-RssItems($feedUrl, $sourceName) {
     return $items
 }
 
-# Fetch GitHub Trending Repos via String Splitting
-function Fetch-GitHubTrending() {
+# Fetch Luật Việt Nam via Scraper
+function Fetch-LuatVietnam() {
     $items = @()
     try {
-        $req = [System.Net.HttpWebRequest]::Create('https://github.com/trending')
-        $req.UserAgent = 'Mozilla/5.0 KDAKindle/1.0'
-        $req.Timeout = 6000
-        $res = $req.GetResponse()
-        $reader = New-Object System.IO.StreamReader($res.GetResponseStream(), [System.Text.Encoding]::UTF8)
-        $html = $reader.ReadToEnd()
-
-        $delim = @('lh-condensed">')
+        $html = & curl.exe -s -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KDAKindle/1.0" "https://luatvietnam.vn/tin-tuc.html"
+        if (-not $html) { return $items }
+        $delim = @('<h3 class="title-news">', 'class="post-title">', 'class="title-news">')
         $parts = $html.Split($delim, [System.StringSplitOptions]::RemoveEmptyEntries)
         $count = 0
         for ($i = 1; $i -lt $parts.Length; $i++) {
             if ($count -ge 10) { break }
             $p = $parts[$i]
-            $aIndex = $p.IndexOf('href=')
-            if ($aIndex -ge 0) {
-                $sub = $p.Substring($aIndex + 6)
+            $aIdx = $p.IndexOf('href=')
+            if ($aIdx -ge 0) {
+                $sub = $p.Substring($aIdx + 6)
                 $endHref = $sub.IndexOf([char]34)
                 if ($endHref -gt 0) {
                     $link = $sub.Substring(0, $endHref)
-                    $tagEnd = $sub.IndexOf('>')
-                    $closeTag = $sub.IndexOf('</a>')
-                    if ($tagEnd -gt 0 -and $closeTag -gt $tagEnd) {
-                        $name = $sub.Substring($tagEnd + 1, $closeTag - $tagEnd - 1).Trim().Replace("`n",'').Replace("`r",'').Replace(' ','')
-                        $items += @{
-                            id = $count
-                            title = $name
-                            link = 'https://github.com' + $link
-                            pubDate = (Get-Date -Format 'dd/MM/yyyy')
-                            desc = 'Du an ma nguon mo dang Trending hot nhat hom nay tren GitHub.'
-                            source = 'GitHub Trending'
+                    $gt = $sub.IndexOf('>')
+                    $closeA = $sub.IndexOf('</a>')
+                    if ($gt -gt 0 -and $closeA -gt $gt) {
+                        $rawT = $sub.Substring($gt + 1, $closeA - $gt - 1)
+                        $t = Clean-HtmlTags $rawT
+                        $t = $t.Trim()
+                        if ($t.Length -gt 15) {
+                            $items += @{
+                                id = $count
+                                title = $t
+                                link = if ($link.StartsWith('http')) { $link } else { 'https://luatvietnam.vn' + $link }
+                                pubDate = (Get-Date -Format 'dd/MM/yyyy')
+                                desc = 'Văn bản pháp luật và thông tin chính sách pháp lý mới nhất từ Luật Việt Nam.'
+                                source = 'Luật Việt Nam'
+                            }
+                            $count++
                         }
-                        $count++
                     }
                 }
             }
         }
     } catch {
-        Write-Host 'Loi GitHub Trending' -ForegroundColor Red
-    }
-    return $items
-}
-
-# Fetch YouTube Trending Titles via String Splitting
-function Fetch-YouTubeTrending() {
-    $items = @()
-    try {
-        $req = [System.Net.HttpWebRequest]::Create('https://www.youtube.com/feed/trending')
-        $req.UserAgent = 'Mozilla/5.0 KDAKindle/1.0'
-        $req.Timeout = 6000
-        $res = $req.GetResponse()
-        $reader = New-Object System.IO.StreamReader($res.GetResponseStream(), [System.Text.Encoding]::UTF8)
-        $html = $reader.ReadToEnd()
-
-        $delim = @('"title":{"runs":[{"text":"')
-        $parts = $html.Split($delim, [System.StringSplitOptions]::RemoveEmptyEntries)
-        $count = 0
-        $seen = @{}
-        for ($i = 1; $i -lt $parts.Length; $i++) {
-            if ($count -ge 10) { break }
-            $p = $parts[$i]
-            $end = $p.IndexOf('"}')
-            if ($end -gt 0) {
-                $t = $p.Substring(0, $end)
-                if ($t.Length -gt 5 -and -not $seen.ContainsKey($t)) {
-                    $seen[$t] = $true
-                    $items += @{
-                        id = $count
-                        title = $t
-                        link = 'https://www.youtube.com/feed/trending'
-                        pubDate = (Get-Date -Format 'dd/MM/yyyy')
-                        desc = 'Video xu huong noi bat dang duoc quan tam nhieu nhat tren YouTube.'
-                        source = 'YouTube Trending'
-                    }
-                    $count++
-                }
-            }
-        }
-    } catch {
-        Write-Host 'Loi YouTube Trending' -ForegroundColor Red
+        Write-Host 'Loi bóc tách LuatVietnam' -ForegroundColor Red
     }
     return $items
 }
@@ -236,7 +197,7 @@ function Fetch-FullArticleParagraphs($url, $fallbackDesc) {
                     if ($closeP -gt 0) { $pText = $pText.Substring(0, $closeP) }
                     $cleanP = Clean-HtmlTags $pText
                     $cleanP = $cleanP.Trim()
-                    if ($cleanP.Length -gt 35 -and -not $cleanP.Contains('VnExpress') -and -not $cleanP.Contains('bản quyền') -and -not $cleanP.Contains('Copyright')) {
+                    if ($cleanP.Length -gt 35 -and -not $cleanP.Contains('bản quyền') -and -not $cleanP.Contains('Copyright')) {
                         $paragraphs += $cleanP
                     }
                 }
@@ -309,10 +270,13 @@ try {
                 if ($rawUrl.Contains('src=vnexpress')) { $src = 'vnexpress' }
                 elseif ($rawUrl.Contains('src=dantri')) { $src = 'dantri' }
                 elseif ($rawUrl.Contains('src=cafef')) { $src = 'cafef' }
-                elseif ($rawUrl.Contains('src=hackernews')) { $src = 'hackernews' }
-                elseif ($rawUrl.Contains('src=reddit')) { $src = 'reddit' }
-                elseif ($rawUrl.Contains('src=github')) { $src = 'github' }
-                elseif ($rawUrl.Contains('src=youtube')) { $src = 'youtube' }
+                elseif ($rawUrl.Contains('src=tinhte')) { $src = 'tinhte' }
+                elseif ($rawUrl.Contains('src=voz')) { $src = 'voz' }
+                elseif ($rawUrl.Contains('src=vietnamnet')) { $src = 'vietnamnet' }
+                elseif ($rawUrl.Contains('src=thanhnien')) { $src = 'thanhnien' }
+                elseif ($rawUrl.Contains('src=vtcnews')) { $src = 'vtcnews' }
+                elseif ($rawUrl.Contains('src=luatvietnam')) { $src = 'luatvietnam' }
+                elseif ($rawUrl.Contains('src=doisongphapluat')) { $src = 'doisongphapluat' }
 
                 if ($src -eq 'all') {
                     Send-Response $stream 'text/html; charset=utf-8' ([System.IO.File]::ReadAllBytes((Join-Path $root 'views\news.html')))
@@ -322,7 +286,7 @@ try {
 
                 # Fetch live items based on source
                 $items = @()
-                $sourceTitle = 'TIN TÚC CẬP NHẬT'
+                $sourceTitle = 'TIN TÚC VIỆT NAM CẬP NHẬT'
                 
                 if ($src -eq 'vnexpress') {
                     $sourceTitle = 'VnExpress - Tin Mới Nhất'
@@ -333,18 +297,27 @@ try {
                 } elseif ($src -eq 'cafef') {
                     $sourceTitle = 'CafeF - Tài Chính & Chứng Khoán'
                     $items = Fetch-RssItems 'https://cafef.vn/home.rss' 'CafeF'
-                } elseif ($src -eq 'hackernews') {
-                    $sourceTitle = 'Hacker News - Công Nghệ & Startup'
-                    $items = Fetch-RssItems 'https://news.ycombinator.com/rss' 'Hacker News'
-                } elseif ($src -eq 'reddit') {
-                    $sourceTitle = 'Reddit Technology - Tin Sốt Dẻo'
-                    $items = Fetch-RssItems 'https://www.reddit.com/r/technology/top.rss' 'Reddit'
-                } elseif ($src -eq 'github') {
-                    $sourceTitle = 'GitHub Trending - Dự Án Mã Nguồn Mở'
-                    $items = Fetch-GitHubTrending
-                } elseif ($src -eq 'youtube') {
-                    $sourceTitle = 'YouTube Trending - Video Xu Hướng'
-                    $items = Fetch-YouTubeTrending
+                } elseif ($src -eq 'tinhte') {
+                    $sourceTitle = 'Mạng Tinh Tế - Tin Công Nghệ'
+                    $items = Fetch-RssItems 'https://tinhte.vn/rss' 'Tinh Tế'
+                } elseif ($src -eq 'voz') {
+                    $sourceTitle = 'Diễn Đàn VOZ - Điểm Tin'
+                    $items = Fetch-RssItems 'https://voz.vn/f/-/index.rss' 'VOZ Forums'
+                } elseif ($src -eq 'vietnamnet') {
+                    $sourceTitle = 'Báo VietNamNet - Thời Sự'
+                    $items = Fetch-RssItems 'https://vietnamnet.vn/rss/thoi-su.rss' 'VietNamNet'
+                } elseif ($src -eq 'thanhnien') {
+                    $sourceTitle = 'Báo Thanh Niên - Tin 24h'
+                    $items = Fetch-RssItems 'https://thanhnien.vn/rss/home.rss' 'Thanh Niên'
+                } elseif ($src -eq 'vtcnews') {
+                    $sourceTitle = 'Báo VTC News - Thời Sự'
+                    $items = Fetch-RssItems 'https://vtcnews.vn/rss/thoi-su.rss' 'VTC News'
+                } elseif ($src -eq 'luatvietnam') {
+                    $sourceTitle = 'Luật Việt Nam - Văn Bản Pháp Luật'
+                    $items = Fetch-LuatVietnam
+                } elseif ($src -eq 'doisongphapluat') {
+                    $sourceTitle = 'Đời Sống & Pháp Luật'
+                    $items = Fetch-RssItems 'https://www.doisongphapluat.com.vn/rss/phap-luat.rss' 'Đời Sống & PL'
                 }
 
                 $itemsHtml = ''
@@ -370,10 +343,13 @@ try {
                 $src = 'vnexpress'
                 if ($rawUrl.Contains('src=dantri')) { $src = 'dantri' }
                 elseif ($rawUrl.Contains('src=cafef')) { $src = 'cafef' }
-                elseif ($rawUrl.Contains('src=hackernews')) { $src = 'hackernews' }
-                elseif ($rawUrl.Contains('src=reddit')) { $src = 'reddit' }
-                elseif ($rawUrl.Contains('src=github')) { $src = 'github' }
-                elseif ($rawUrl.Contains('src=youtube')) { $src = 'youtube' }
+                elseif ($rawUrl.Contains('src=tinhte')) { $src = 'tinhte' }
+                elseif ($rawUrl.Contains('src=voz')) { $src = 'voz' }
+                elseif ($rawUrl.Contains('src=vietnamnet')) { $src = 'vietnamnet' }
+                elseif ($rawUrl.Contains('src=thanhnien')) { $src = 'thanhnien' }
+                elseif ($rawUrl.Contains('src=vtcnews')) { $src = 'vtcnews' }
+                elseif ($rawUrl.Contains('src=luatvietnam')) { $src = 'luatvietnam' }
+                elseif ($rawUrl.Contains('src=doisongphapluat')) { $src = 'doisongphapluat' }
 
                 $idx = 0
                 if ($rawUrl.Contains('idx=')) {
@@ -391,10 +367,13 @@ try {
                 if ($src -eq 'vnexpress') { $items = Fetch-RssItems 'https://vnexpress.net/rss/tin-moi-nhat.rss' 'VnExpress' }
                 elseif ($src -eq 'dantri') { $items = Fetch-RssItems 'https://dantri.com.vn/rss/su-kien.rss' 'Dân Trí' }
                 elseif ($src -eq 'cafef') { $items = Fetch-RssItems 'https://cafef.vn/home.rss' 'CafeF' }
-                elseif ($src -eq 'hackernews') { $items = Fetch-RssItems 'https://news.ycombinator.com/rss' 'Hacker News' }
-                elseif ($src -eq 'reddit') { $items = Fetch-RssItems 'https://www.reddit.com/r/technology/top.rss' 'Reddit' }
-                elseif ($src -eq 'github') { $items = Fetch-GitHubTrending }
-                elseif ($src -eq 'youtube') { $items = Fetch-YouTubeTrending }
+                elseif ($src -eq 'tinhte') { $items = Fetch-RssItems 'https://tinhte.vn/rss' 'Tinh Tế' }
+                elseif ($src -eq 'voz') { $items = Fetch-RssItems 'https://voz.vn/f/-/index.rss' 'VOZ Forums' }
+                elseif ($src -eq 'vietnamnet') { $items = Fetch-RssItems 'https://vietnamnet.vn/rss/thoi-su.rss' 'VietNamNet' }
+                elseif ($src -eq 'thanhnien') { $items = Fetch-RssItems 'https://thanhnien.vn/rss/home.rss' 'Thanh Niên' }
+                elseif ($src -eq 'vtcnews') { $items = Fetch-RssItems 'https://vtcnews.vn/rss/thoi-su.rss' 'VTC News' }
+                elseif ($src -eq 'luatvietnam') { $items = Fetch-LuatVietnam }
+                elseif ($src -eq 'doisongphapluat') { $items = Fetch-RssItems 'https://www.doisongphapluat.com.vn/rss/phap-luat.rss' 'Đời Sống & PL' }
 
                 $targetItem = if ($items.Count -gt $idx) { $items[$idx] } else { @{ title='Chi tiết bài báo'; link=''; source='KDA News'; pubDate=(Get-Date -Format 'dd/MM/yyyy'); desc='Nội dung bài viết đang được bóc tách.' } }
 
