@@ -171,7 +171,7 @@ function Fetch-LuatVietnam() {
     return $items
 }
 
-# Fetch Full Article Paragraphs from live URL
+# Fetch Full Article Paragraphs from live URL (supports News & VOZ XenForo)
 function Fetch-FullArticleParagraphs($url, $fallbackDesc) {
     $paragraphs = @()
     if (-not $url -or $url.Length -lt 8) {
@@ -186,11 +186,32 @@ function Fetch-FullArticleParagraphs($url, $fallbackDesc) {
         $reader = New-Object System.IO.StreamReader($res.GetResponseStream(), [System.Text.Encoding]::UTF8)
         $html = $reader.ReadToEnd()
 
+        # Check for XenForo / VOZ bbWrapper first
+        if ($html.Contains('class="bbWrapper">')) {
+            $parts = $html.Split(@('class="bbWrapper">'), [System.StringSplitOptions]::RemoveEmptyEntries)
+            if ($parts.Length -gt 1) {
+                $sub = $parts[1]
+                $end = $sub.IndexOf('</div>')
+                if ($end -gt 0) {
+                    $bbContent = $sub.Substring(0, $end)
+                    $clean = Clean-HtmlTags $bbContent
+                    $lines = $clean.Split("`n")
+                    foreach ($l in $lines) {
+                        $trimmed = $l.Trim().Replace("`r",'')
+                        if ($trimmed.Length -gt 25 -and -not $trimmed.StartsWith('Click để xem') -and -not $trimmed.StartsWith('http') -and -not $trimmed.StartsWith('<')) {
+                            $paragraphs += $trimmed
+                        }
+                    }
+                    if ($paragraphs.Count -gt 0) { return $paragraphs }
+                }
+            }
+        }
+
+        # Standard <p> paragraph extractor
         $pParts = $html.Split([char]60)
         foreach ($p in $pParts) {
             $gt = $p.IndexOf([char]62)
             if ($gt -ge 0) {
-                $tagContent = $p.Substring(0, $gt).ToLower()
                 if ($p.StartsWith('p') -or $p.StartsWith('P')) {
                     $pText = $p.Substring($gt + 1)
                     $closeP = $pText.IndexOf('</p>')

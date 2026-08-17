@@ -2,14 +2,15 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>{{TITLE}}</title>
+<title>{{TITLE}} - KDA Kindle Reader</title>
 <link rel="stylesheet" href="/css/kindle.css">
 </head>
 <body>
+
 <h1>KDA KINDLE READER</h1>
 <table class="kindle-nav">
 <tr>
-<td><a href="/news"><b>[1. BÁO CHÍ & TECH]</b></a></td>
+<td><a href="/news"><b>[1. BÁO CHÍ VIỆT NAM]</b></a></td>
 <td><a href="/books"><b>[2. TRUYỆN CHỮ]</b></a></td>
 <td><a href="/comics"><b>[3. TRUYỆN TRANH]</b></a></td>
 </tr>
@@ -17,30 +18,31 @@
 <hr>
 
 <h2>{{TITLE}}</h2>
-<p><b>Nguồn: {{SOURCE}} | Ngày: {{PUBDATE}}</b></p>
+<p><small><b>Nguồn:</b> {{SOURCE}} | <b>Thời gian:</b> {{PUBDATE}}</small></p>
 
 <div class="test-box">
-<b>🤖 AI TÓM TẮT TIẾNG VIỆT (Tối ưu Kindle Touch 4):</b><br>
-• <b>Chủ đề:</b> {{TITLE}}.<br>
-• <b>Nội dung cốt lõi:</b> {{SUMMARY_TEXT}}<br>
-• <b>Đánh giá:</b> Tin tức cập nhật mới nhất từ {{SOURCE}}.
+<p><b>🤖 AI TÓM TẮT TIẾNG VIỆT:</b></p>
+<ul class="font-normal" style="margin-left: 20px;">
+  <li><b>Chủ đề chính:</b> {{TITLE}}</li>
+  <li><b>Nội dung cốt lõi:</b> {{SUMMARY_TEXT}}</li>
+  <li><b>Đánh giá:</b> Tin tức cập nhật từ nguồn {{SOURCE}} phục vụ đọc nhanh trên màn hình E-Ink Kindle.</li>
+</ul>
 </div>
 
-<img src="/images/test-grayscale.jpg" alt="Cover Image">
+<hr>
 
+<h2>NỘI DUNG BÀI VIẾT CHI TIẾT</h2>
 <div class="test-box font-normal">
-<p>{{DESC}}</p>
-<p><i>Nội dung bài viết gốc được bóc tách và tối ưu giao diện KDA-KHTML cho màn hình Kindle Touch 4.</i></p>
+{{DESC}}
 </div>
-
-<p><a href="/news?src={{SRC_PARAM}}" class="btn">[◄ Về Danh Sách Tin]</a></p>
 
 <hr>
 <table class="kindle-nav">
 <tr>
-<td><a href="/"><b>[VỀ TRANG CHỦ]</b></a></td>
-<td><a href="#top"><b>[VỀ ĐẦU TRANG ▲]</b></a></td>
+<td><a href="/news?src={{SRC_PARAM}}" class="btn"><b>[◄ Về Danh Sách Tin]</b></a></td>
+<td><a href="#" class="btn"><b>[Về Đầu Trang ▲]</b></a></td>
 </tr>
 </table>
+
 </body>
 </html>
