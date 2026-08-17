@@ -1,0 +1,107 @@
+/* ==========================================================================
+   KDA KINDLE READER - CSS Baseline (HTML4 / E-Ink Compatible)
+   Zero Flexbox, Zero Grid, Zero Animations, High Contrast White/Black
+   ========================================================================== */
+
+body {
+    background-color: #ffffff;
+    color: #000000;
+    font-family: serif;
+    font-size: 18px;
+    line-height: 1.6;
+    margin: 10px;
+    padding: 0;
+}
+
+/* Headings */
+h1 {
+    font-size: 24px;
+    font-weight: bold;
+    margin: 15px 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 2px solid #000000;
+}
+
+h2 {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 20px 0 10px 0;
+    border-bottom: 1px dashed #000000;
+    padding-bottom: 3px;
+}
+
+h3 {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 15px 0 5px 0;
+}
+
+/* Paragraphs & Text */
+p {
+    margin: 10px 0;
+    text-align: left;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #000000;
+    margin: 20px 0;
+}
+
+/* Touch Friendly Links (Min 40px height for finger tap on Kindle Touch) */
+a {
+    color: #000000;
+    text-decoration: underline;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 18px;
+    margin: 6px 4px 6px 0;
+    background-color: #ffffff;
+    color: #000000;
+    border: 2px solid #000000;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.btn:active {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+/* Responsive Image for Kindle */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 15px auto;
+    border: 1px solid #000000;
+}
+
+/* Test Boxes & Typography Sample Blocks */
+.test-box {
+    border: 1px solid #000000;
+    padding: 12px;
+    margin: 15px 0;
+    background-color: #ffffff;
+}
+
+.font-small { font-size: 14px; line-height: 1.4; }
+.font-normal { font-size: 18px; line-height: 1.6; }
+.font-large { font-size: 22px; line-height: 1.6; }
+.font-xlarge { font-size: 26px; line-height: 1.6; }
+
+/* Simple Table Layout (No Flex/Grid) */
+table.kindle-nav {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+}
+
+table.kindle-nav td {
+    padding: 8px;
+    text-align: center;
+    border: 1px solid #000000;
+}

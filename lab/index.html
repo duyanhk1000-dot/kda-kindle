@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDA Kindle Compatibility Lab (Phase 0)</title>
+    <link rel="stylesheet" href="../css/kindle.css">
+</head>
+<body>
+
+    <h1>KDA KINDLE LAB (Phase 0)</h1>
+    <p><i>Trang kiểm thử khả năng hiển thị thực tế trên Kindle Touch 4 (Firmware 5.3.7.3).</i></p>
+
+    <hr>
+
+    <!-- [1] Tiếng Việt UTF-8 -->
+    <h2>[1] Kiểm thử Tiếng Việt UTF-8</h2>
+    <div class="test-box">
+        <p><b>Chữ cái có dấu:</b> ă â ê ô ơ ư đ Á À Ả Ã Ạ</p>
+        <p><b>Dấu tổ hợp kép:</b> ấ ầ ẩ ẫ ậ ắ ằ ẳ ẵ ặ ế ề ể ễ ệ ố ồ ổ ỗ ộ ớ ờ ở ỡ ợ ứ ừ ử ữ ự</p>
+        <p><b>Câu mẫu:</b> "Tối nay ăn cơm với cá hay ăn phở? Trời mưa tầm tã ở Hà Nội."</p>
+    </div>
+
+    <!-- [2] Typography & Font Sizes -->
+    <h2>[2] Typography & Cỡ chữ</h2>
+    <div class="test-box">
+        <p class="font-small"><b>Cỡ chữ 14px (Nhỏ):</b> KDA Kindle Reader - Cổng đọc báo và truyện chữ tối ưu cho màn hình E-Ink.</p>
+        <p class="font-normal"><b>Cỡ chữ 18px (Vừa - Chuẩn):</b> KDA Kindle Reader - Cổng đọc báo và truyện chữ tối ưu cho màn hình E-Ink.</p>
+        <p class="font-large"><b>Cỡ chữ 22px (Lớn):</b> KDA Kindle Reader - Cổng đọc báo và truyện chữ tối ưu cho màn hình E-Ink.</p>
+        <p class="font-xlarge"><b>Cỡ chữ 26px (Rất lớn):</b> KDA Kindle Reader - Cổng đọc báo.</p>
+    </div>
+
+    <!-- [3] Paragraph -->
+    <h2>[3] Đọc Đoạn Văn (Paragraph)</h2>
+    <div class="test-box">
+        <p>Ngõ hẹp nằm sâu trong lòng phố cổ, ánh đèn dầu tù mù hắt lên những mảng tường rêu phong. Tiếng bước chân thong thả của người bán hàng rong vọng lại giữa đêm vắng, tạo nên một không gian trầm lắng và cổ kính. Đây là đoạn văn mẫu dùng để kiểm tra độ rõ nét của chữ viết và khoảng cách giữa các dòng trên màn hình E-Ink Kindle.</p>
+    </div>
+
+    <!-- [4] Touch Targets / Links -->
+    <h2>[4] Nút Bấm & Liên Kết (Touch Targets)</h2>
+    <div class="test-box">
+        <p>Thử nghiệm độ nhạy cảm ứng hồng ngoại với các nút bấm kích thước tối thiểu 40px:</p>
+        <p>
+            <a href="#section-image" class="btn">[Xem Ảnh mẫu]</a>
+            <a href="#section-long" class="btn">[Đọc văn bản dài]</a>
+            <a href="../index.html" class="btn">[◄ Về Trang chủ]</a>
+        </p>
+    </div>
+
+    <!-- [5] Image Test -->
+    <h2 id="section-image">[5] Hiển Thị Hình Ảnh (Grayscale E-Ink)</h2>
+    <div class="test-box">
+        <p>Ảnh nén JPEG Grayscale `max-width: 100%` (giữ nguyên tỷ lệ):</p>
+        <img src="../images/test-grayscale.jpg" alt="Mẫu ảnh E-Ink Grayscale">
+        <p style="text-align: center; font-size: 14px;"><i>Hình 1: Thử nghiệm độ nét và độ tương phản ảnh 16 cấp màu xám.</i></p>
+    </div>
+
+    <!-- [6] Long Content Scrolling Test -->
+    <h2 id="section-long">[6] Đoạn Văn Dài (Test Cuộn Trang E-Ink)</h2>
+    <div class="test-box">
+        <p><b>Phàm Nhân Tu Tiên - Trích đoạn thử nghiệm cuộn trang:</b></p>
+        <p>Hàn Lập ngẩng đầu nhìn bầu trời đêm rực rỡ ánh sao, trong lòng trào dâng một cảm giác xa xăm. Tu tiên một đường đầy rẫy chông gai, gian khổ không sao kể xiết. Từ một thiếu niên bình thường ở Nam Bình thôn, trải qua bao nhiêu sóng gió hiểm trở, hắn mới bước được tới ngày hôm nay.</p>
+        <p>Gió đêm thổi qua tán lá trúc phát ra tiếng rì rào như tiếng sóng biển. Hàn Lập siết chặt tay, bình tĩnh điều hòa nhịp thở. Trong túi trữ vật của hắn, chiếc Chưởng Thiên Bình nhỏ bé vẫn đang âm thầm hấp thu nguyệt hoa giữa đêm tĩnh mịch.</p>
+        <p>Con đường phía trước còn rất dài, nhưng hắn biết rõ bản thân không thể lùi bước. Muốn trường sinh, muốn đứng trên đỉnh cao của nhân giới, mọi trở ngại đều chỉ là đá lót đường cho hành trình tu đạo của hắn mà thôi.</p>
+    </div>
+
+    <!-- [7] Special Characters -->
+    <h2>[7] Ký Tự Đặc Biệt & Dấu Câu</h2>
+    <div class="test-box">
+        <p><b>Ngoặc kép & Dấu nối:</b> “Thử nghiệm câu thoại” - ‘Trích dẫn đơn’ — Dấu gạch ngang dài … Dấu ba chấm</p>
+        <p><b>Biểu tượng phổ biến:</b> © 2026 KDA Kindle ® Registered ™ Trademark § Paragraph ¶ Pilcrow • Bullet ★ Star</p>
+    </div>
+
+    <hr>
+
+    <!-- Navigation Footer -->
+    <table class="kindle-nav">
+        <tr>
+            <td><a href="../index.html"><b>[◄ VỀ TRANG CHỦ]</b></a></td>
+            <td><a href="#top"><b>[VỀ ĐẦU TRANG ▲]</b></a></td>
+        </tr>
+    </table>
+
+</body>
+</html>
