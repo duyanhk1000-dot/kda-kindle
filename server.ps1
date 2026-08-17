@@ -1,10 +1,10 @@
-﻿# KDA Kindle Local HTTP Gateway Server (Phase 2 Live News Engine)
+﻿# KDA Kindle Local HTTP Gateway Server (Phase 2 Live News & Full Article Reader)
 # Pure HTTP (Port 8080) - Non-Admin Compatible TcpListener
 
 $port = 8080
 $root = $PSScriptRoot
 
-# Ensure TLS 1.2 for outbound RSS requests
+# Ensure TLS 1.2 for outbound RSS & article requests
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 
 # Get local LAN IPv4 address
@@ -12,7 +12,7 @@ $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notli
 if (-not $ip) { $ip = "127.0.0.1" }
 
 Write-Host '==========================================================' -ForegroundColor Cyan
-Write-Host '  KDA KINDLE READER GATEWAY (PHASE 2 LIVE NEWS + AI)' -ForegroundColor Green
+Write-Host '  KDA KINDLE READER GATEWAY (PHASE 2 FULL LIVE NEWS + AI)' -ForegroundColor Green
 Write-Host '==========================================================' -ForegroundColor Cyan
 Write-Host ''
 Write-Host '  URL cho máy Kindle Touch 4 (Mở trong cùng Wi-Fi LAN):' -ForegroundColor Yellow
@@ -193,6 +193,49 @@ function Fetch-YouTubeTrending() {
     return $items
 }
 
+# Fetch Full Article Paragraphs from live URL
+function Fetch-FullArticleParagraphs($url, $fallbackDesc) {
+    $paragraphs = @()
+    if (-not $url -or $url.Length -lt 8) {
+        $paragraphs += $fallbackDesc
+        return $paragraphs
+    }
+    try {
+        $req = [System.Net.HttpWebRequest]::Create($url)
+        $req.UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) KDAKindleReader/1.0'
+        $req.Timeout = 7000
+        $res = $req.GetResponse()
+        $reader = New-Object System.IO.StreamReader($res.GetResponseStream(), [System.Text.Encoding]::UTF8)
+        $html = $reader.ReadToEnd()
+
+        $pParts = $html.Split([char]60)
+        $cleanFullText = ''
+        foreach ($p in $pParts) {
+            $gt = $p.IndexOf([char]62)
+            if ($gt -ge 0) {
+                $tagContent = $p.Substring(0, $gt).ToLower()
+                if ($p.StartsWith('p') -or $p.StartsWith('P')) {
+                    $pText = $p.Substring($gt + 1)
+                    $closeP = $pText.IndexOf('</p>')
+                    if ($closeP -gt 0) { $pText = $pText.Substring(0, $closeP) }
+                    $cleanP = Clean-HtmlTags $pText
+                    $cleanP = $cleanP.Trim()
+                    if ($cleanP.Length -gt 35 -and -not $cleanP.Contains('VnExpress') -and -not $cleanP.Contains('bản quyền') -and -not $cleanP.Contains('Copyright')) {
+                        $paragraphs += $cleanP
+                    }
+                }
+            }
+        }
+    } catch {
+        Write-Host 'Loi bóc tách bai viet live' -ForegroundColor Red
+    }
+
+    if ($paragraphs.Count -eq 0) {
+        $paragraphs += $fallbackDesc
+    }
+    return $paragraphs
+}
+
 $endpoint = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Any, $port)
 $tcpListener = New-Object System.Net.Sockets.TcpListener $endpoint
 $tcpListener.Start()
@@ -263,7 +306,7 @@ try {
 
                 # Fetch live items based on source
                 $items = @()
-                $sourceTitle = 'TIN TUC CAP NHAT'
+                $sourceTitle = 'TIN TÚC CẬP NHẬT'
                 
                 if ($src -eq 'vnexpress') {
                     $sourceTitle = 'VnExpress - Tin Mới Nhất'
@@ -290,7 +333,7 @@ try {
 
                 $itemsHtml = ''
                 if ($items.Count -eq 0) {
-                    $itemsHtml = '<p>Dang cap nhat luong tin tuc truc tiep...</p>'
+                    $itemsHtml = '<p>Đang cập nhật luồng tin tức trực tiếp...</p>'
                 } else {
                     $idx = 0
                     foreach ($item in $items) {
@@ -306,7 +349,7 @@ try {
                 $client.Close()
                 continue
             }
-            # ROUTE: News Article Detail + AI Summary
+            # ROUTE: Full News Article Reader + Real Live Scraping
             elseif ($uPath -eq '/news/detail') {
                 $src = 'vnexpress'
                 if ($rawUrl.Contains('src=dantri')) { $src = 'dantri' }
@@ -337,12 +380,22 @@ try {
                 elseif ($src -eq 'github') { $items = Fetch-GitHubTrending }
                 elseif ($src -eq 'youtube') { $items = Fetch-YouTubeTrending }
 
-                $targetItem = if ($items.Count -gt $idx) { $items[$idx] } else { @{ title='Chi tiet bai bao'; source='KDA News'; pubDate=(Get-Date -Format 'dd/MM/yyyy'); desc='Noi dung bai viet dang duoc boc tach.' } }
+                $targetItem = if ($items.Count -gt $idx) { $items[$idx] } else { @{ title='Chi tiết bài báo'; link=''; source='KDA News'; pubDate=(Get-Date -Format 'dd/MM/yyyy'); desc='Nội dung bài viết đang được bóc tách.' } }
 
-                $summaryText = 'Su kien noi bat tu ' + $targetItem.source + ' thu hut su quan tam cua doc gia cong nghe.'
+                # Fetch REAL live full article paragraphs from original website link!
+                $fullParagraphs = Fetch-FullArticleParagraphs $targetItem.link $targetItem.desc
+
+                # Format full article body HTML
+                $articleBodyHtml = ''
+                foreach ($p in $fullParagraphs) {
+                    $articleBodyHtml += '<p>' + $p + '</p>'
+                }
+
+                # Summary based on real 1st paragraph
+                $summaryText = if ($fullParagraphs.Count -gt 0) { $fullParagraphs[0] } else { 'Thông tin cập nhật nổi bật từ ' + $targetItem.source }
 
                 $tplText = [System.IO.File]::ReadAllText((Join-Path $root 'views\news_detail.html'))
-                $pageHtml = $tplText.Replace('{{TITLE}}', $targetItem.title).Replace('{{SOURCE}}', $targetItem.source).Replace('{{PUBDATE}}', $targetItem.pubDate).Replace('{{SUMMARY_TEXT}}', $summaryText).Replace('{{DESC}}', $targetItem.desc).Replace('{{SRC_PARAM}}', $src)
+                $pageHtml = $tplText.Replace('{{TITLE}}', $targetItem.title).Replace('{{SOURCE}}', $targetItem.source).Replace('{{PUBDATE}}', $targetItem.pubDate).Replace('{{SUMMARY_TEXT}}', $summaryText).Replace('{{DESC}}', $articleBodyHtml).Replace('{{SRC_PARAM}}', $src)
 
                 Send-Response $stream 'text/html; charset=utf-8' ([System.Text.Encoding]::UTF8.GetBytes($pageHtml))
                 $client.Close()
