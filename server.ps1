@@ -57,7 +57,7 @@ function Clean-HtmlTags($text) {
     return $clean
 }
 
-# Fetch Live RSS items
+# Fetch Live RSS items with CDATA InnerText support
 function Fetch-RssItems($feedUrl, $sourceName) {
     $items = @()
     try {
@@ -75,30 +75,47 @@ function Fetch-RssItems($feedUrl, $sourceName) {
         $count = 0
         foreach ($node in $nodes) {
             if ($count -ge 12) { break }
-            $title = $node.title
-            if ($title.'#text') { $title = $title.'#text' }
+            
+            $title = ''
+            if ($node.title) {
+                if ($node.title.InnerText) { $title = $node.title.InnerText.Trim() }
+                elseif ($node.title.'#cdata-section') { $title = $node.title.'#cdata-section'.Trim() }
+                elseif ($node.title.'#text') { $title = $node.title.'#text'.Trim() }
+                else { $title = ([string]$node.title).Trim() }
+            }
+
             $link = $node.link
             if ($link.href) { $link = $link.href }
             $pubDate = $node.pubDate
             if (-not $pubDate) { $pubDate = $node.updated }
             if (-not $pubDate) { $pubDate = (Get-Date -Format 'dd/MM/yyyy HH:mm') }
 
-            $desc = $node.description
-            if (-not $desc) { $desc = $node.summary }
-            if ($desc.'#text') { $desc = $desc.'#text' }
+            $desc = ''
+            if ($node.description) {
+                if ($node.description.InnerText) { $desc = $node.description.InnerText.Trim() }
+                elseif ($node.description.'#cdata-section') { $desc = $node.description.'#cdata-section'.Trim() }
+                elseif ($node.description.'#text') { $desc = $node.description.'#text'.Trim() }
+                else { $desc = ([string]$node.description).Trim() }
+            }
+            if (-not $desc -and $node.summary) {
+                if ($node.summary.InnerText) { $desc = $node.summary.InnerText.Trim() }
+                else { $desc = ([string]$node.summary).Trim() }
+            }
 
             $cleanDesc = Clean-HtmlTags $desc
             if ($cleanDesc.Length -gt 150) { $cleanDesc = $cleanDesc.Substring(0, 150) + '...' }
 
-            $items += @{
-                id = $count
-                title = [string]$title
-                link = [string]$link
-                pubDate = [string]$pubDate
-                desc = $cleanDesc
-                source = $sourceName
+            if ($title) {
+                $items += @{
+                    id = $count
+                    title = $title
+                    link = [string]$link
+                    pubDate = [string]$pubDate
+                    desc = $cleanDesc
+                    source = $sourceName
+                }
+                $count++
             }
-            $count++
         }
     } catch {
         Write-Host "Loi lay RSS $sourceName" -ForegroundColor Red
@@ -209,7 +226,6 @@ function Fetch-FullArticleParagraphs($url, $fallbackDesc) {
         $html = $reader.ReadToEnd()
 
         $pParts = $html.Split([char]60)
-        $cleanFullText = ''
         foreach ($p in $pParts) {
             $gt = $p.IndexOf([char]62)
             if ($gt -ge 0) {
